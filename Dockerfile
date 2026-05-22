@@ -1,23 +1,49 @@
-# Multi-stage build for Edge VLM HVAC System
-FROM nvcr.io/nvidia/l4t-pytorch:r35.4.1-pth2.0-py3 as builder
+# Multi-stage build for Edge VLM HVAC system
+# Stage 1: Builder
 
-WORKDIR /build
-RUN apt-get update && apt-get install -y git curl wget build-essential python3-dev && rm -rf /var/lib/apt/lists/*
-COPY requirements_jetson.txt .
-RUN pip install --upgrade pip setuptools wheel && pip install -r requirements_jetson.txt --no-cache-dir
+FROM python:3.10-slim AS builder
 
-# Runtime stage
-FROM nvcr.io/nvidia/l4t-pytorch:r35.4.1-pth2.0-py3
 WORKDIR /app
-RUN apt-get update && apt-get install -y libopencv-dev python3-opencv libatlas-base-dev libjasper-dev libtiff-dev && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /usr/local/lib/python3.8/dist-packages /usr/local/lib/python3.8/dist-packages
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    python3-dev \
+    libopencv-dev \
+    python3-opencv \
+    libatlas-base-dev \
+    libglib2.0-0 \
+    libgl1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements_jetson.txt .
+
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements_jetson.txt || true
+
+# Stage 2: Runtime
+
+FROM python:3.10-slim AS runtime
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-opencv \
+    libopencv-dev \
+    libatlas-base-dev \
+    libglib2.0-0 \
+    libgl1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local /usr/local
+
 COPY . .
 
-RUN useradd -m -u 1000 hvac && chown -R hvac:hvac /app
-USER hvac
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD python3 -c "import sys; sys.exit(0)" || exit 1
-CMD ["python3", "main.py"]
-
-LABEL org.opencontainers.image.source="https://github.com/KAJ-EdgeVLM-HVAC-Project/edge-vlm-hvac-system" \
-      org.opencontainers.image.title="Edge VLM HVAC System"
+CMD ["python", "main.py"]
