@@ -1,99 +1,76 @@
-name: CI — Matrix 확장 테스트
+name: CI Matrix
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
-      - "**.py"
-      - "requirements_mac.txt"
+      - '**/*.py'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements_jetson.txt'
+      - '.github/workflows/ci-matrix.yml'
   pull_request:
-    branches: [main]
-    paths:
-      - "**.py"
-      - "requirements_mac.txt"
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  # ── Matrix 테스트: Python 버전 × OS 조합 ────────────────────────────────
-  matrix-test:
-    name: "Test py${{ matrix.python-version }} / ${{ matrix.os }}"
+  python-check:
+    name: Python syntax check
+    runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11"]
-        os: [ubuntu-latest, macos-latest]
-        exclude:
-          # macos + 3.10 조합은 MPS 미지원으로 제외
-          - os: macos-latest
-            python-version: "3.10"
-
-    runs-on: ${{ matrix.os }}
+        python-version:
+          - '3.10'
+          - '3.11'
 
     steps:
-      - name: 체크아웃
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 캐시 시작 시각 기록
-        id: time-start
-        run: echo "start=$(date +%s)" >> $GITHUB_OUTPUT
-
-      - name: 환경 설정 (Composite Action)
-        id: setup
-        uses: ./.github/actions/setup-env
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: 캐시 결과 및 소요 시간 출력
+      - name: Check Python syntax
         run: |
-          end=$(date +%s)
-          start=${{ steps.time-start.outputs.start }}
-          echo "⏱ 의존성 설치 소요: $((end - start))초"
-          echo "💾 캐시 히트: ${{ steps.setup.outputs.cache-hit }}"
+          python -m compileall .
 
-      - name: Reusable Workflow 호출
-        uses: ./.github/workflows/reusable-setup.yml
-        with:
-          python-version: ${{ matrix.python-version }}
-
-  # ── 캐시 효과 측정 전용 Job ─────────────────────────────────────────────
-  cache-benchmark:
-    name: "캐시 효과 측정 (Ubuntu / py3.11)"
+  npm-check:
+    name: npm install check
     runs-on: ubuntu-latest
+
     steps:
-      - name: 체크아웃
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: [측정] 캐시 없이 설치 (cold run 시뮬)
-        id: cold
-        run: |
-          start=$(date +%s)
-          pip install --upgrade pip torch torchvision --index-url https://download.pytorch.org/whl/cpu -q
-          pip install -r requirements_mac.txt -q
-          end=$(date +%s)
-          echo "cold_sec=$((end-start))" >> $GITHUB_OUTPUT
-
-      - name: pip 캐시 복원
-        uses: actions/cache@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          path: ~/.cache/pip
-          key: pip-benchmark-ubuntu-py3.11-${{ hashFiles('requirements_mac.txt') }}
+          node-version: '20'
 
-      - name: [측정] 캐시 있는 상태에서 설치 (warm run)
-        id: warm
-        run: |
-          start=$(date +%s)
-          pip install --upgrade pip torch torchvision --index-url https://download.pytorch.org/whl/cpu -q
-          pip install -r requirements_mac.txt -q
-          end=$(date +%s)
-          echo "warm_sec=$((end-start))" >> $GITHUB_OUTPUT
+      - name: Install npm dependencies
+        run: npm ci
 
-      - name: 캐시 효과 리포트 출력
+      - name: Run npm test
+        run: npm test --if-present
+
+  dockerfile-check:
+    name: Dockerfile check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dockerfile exists
         run: |
-          cold=${{ steps.cold.outputs.cold_sec }}
-          warm=${{ steps.warm.outputs.warm_sec }}
-          if [ "$cold" -gt 0 ]; then
-            improvement=$(( (cold - warm) * 100 / cold ))
-            echo "📊 캐시 효과 리포트"
-            echo "   Cold run : ${cold}초"
-            echo "   Warm run : ${warm}초"
-            echo "   개선율   : ${improvement}%"
-          fi
+          test -f Dockerfile
+          docker version
