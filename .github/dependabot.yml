@@ -1,0 +1,142 @@
+version: 2
+updates:
+  # npm 의존성 업데이트
+  - package-ecosystem: "npm"
+    directory: "/week9"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 10
+    allow:
+      - dependency-type: "all"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-major: "chore(deps)!:"
+      prefix-minor: "chore(deps):"
+      prefix-patch: "chore(deps):"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "/"
+    reviewers:
+      - "KAJ-EdgeVLM-HVAC-Project"
+    assignees:
+      - "KAJ-EdgeVLM-HVAC-Project"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "automated"
+    milestone: 1
+    target-branch: "main"
+    ignore:
+      # 무시할 패키지 (선택사항)
+      - dependency-name: "some-package"
+        versions: ["1.x"]
+    # 버전 업데이트 그룹화
+    groups:
+      development-dependencies:
+        dependency-types:
+          - "dev"
+        patterns:
+          - "@*"
+          - "eslint*"
+          - "prettier*"
+          - "typescript*"
+      production-dependencies:
+        dependency-types:
+          - "prod"
+      patches:
+        update-types:
+          - "patch"
+    # 자동 병합 설정
+    rebase-strategy: "auto"
+    automerge-type: "squash"
+    auto-merge: true
+    skip-commit-verification: false
+
+  # Python 의존성 업데이트
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:30"
+      timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "all"
+    commit-message:
+      prefix: "chore(python-deps)"
+      include: "scope"
+    reviewers:
+      - "KAJ-EdgeVLM-HVAC-Project"
+    labels:
+      - "dependencies"
+      - "python"
+      - "automated"
+    target-branch: "main"
+    ignore:
+      # 특정 버전의 PyTorch는 Jetson 호환성 때문에 고정
+      - dependency-name: "torch"
+        versions: [">=2.1"]
+      - dependency-name: "torchvision"
+        versions: [">=0.17"]
+    groups:
+      pytorch-deps:
+        patterns:
+          - "torch*"
+          - "torchvision*"
+        update-types:
+          - "patch"
+      transformers-deps:
+        patterns:
+          - "transformers*"
+          - "accelerate*"
+          - "qwen*"
+      other-deps:
+        dependency-types:
+          - "prod"
+
+  # Docker 베이스 이미지 업데이트
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "04:00"
+      timezone: "Asia/Seoul"
+    commit-message:
+      prefix: "chore(docker)"
+      include: "scope"
+    reviewers:
+      - "KAJ-EdgeVLM-HVAC-Project"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+      - "automated"
+    target-branch: "main"
+
+  # GitHub Actions 업데이트
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "thursday"
+      time: "04:30"
+      timezone: "Asia/Seoul"
+    commit-message:
+      prefix: "ci(actions)"
+      include: "scope"
+    reviewers:
+      - "KAJ-EdgeVLM-HVAC-Project"
+    labels:
+      - "ci/cd"
+      - "github-actions"
+      - "automated"
+    target-branch: "main"
+    # Actions는 패치만 자동 업데이트
+    auto-merge: true
+    automerge-type: "squash"
+    rebase-strategy: "auto"

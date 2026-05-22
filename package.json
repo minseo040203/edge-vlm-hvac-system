@@ -1,0 +1,39 @@
+{
+  "name": "@kaj-edgevlm-hvac-project/edge-vlm-hvac-system",
+  "version": "1.0.0",
+  "description": "Edge VLM + IoT 융합 기반 지능형 공조(HVAC) 제어 시스템",
+  "main": "main.py",
+  "scripts": {
+    "start": "python3 main.py",
+    "test": "echo \"No tests specified\"",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "snyk": "snyk test || true",
+    "docker:build": "docker build -t edge-vlm-hvac:latest .",
+    "docker:run": "docker run --rm edge-vlm-hvac:latest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KAJ-EdgeVLM-HVAC-Project/edge-vlm-hvac-system.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/kaj-edgevlm-hvac-project"
+  },
+  "keywords": [
+    "hvac",
+    "iot",
+    "vlm",
+    "edge-ai",
+    "jetson",
+    "thermal-comfort",
+    "pmv"
+  ],
+  "author": "KAJ-EdgeVLM-HVAC-Project",
+  "license": "MIT",
+  "devDependencies": {
+    "@snyk/protect": "^1.1271.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
