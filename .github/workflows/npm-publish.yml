@@ -43,11 +43,11 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://npm.pkg.github.com'
-          scope: '@kaj-edgevlm-hvac-project'
+          scope: '@minseo040203'
 
       - name: npm 인증 설정
         run: |
-          echo "@kaj-edgevlm-hvac-project:registry=https://npm.pkg.github.com" > ~/.npmrc
+          echo "@minseo040203:registry=https://npm.pkg.github.com" > ~/.npmrc
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -91,4 +91,4 @@ jobs:
           echo "npm 패키지 배포 완료"
           echo "이전 버전: ${{ steps.version.outputs.current_version }}"
           echo "새 버전: ${{ steps.bump_version.outputs.new_version }}"
-          echo "설치 명령: npm install @kaj-edgevlm-hvac-project/edge-vlm-hvac-system@${{ steps.bump_version.outputs.new_version }}"
+          echo "설치 명령: npm install @minseo040203/edge-vlm-hvac-system@${{ steps.bump_version.outputs.new_version }}"

@@ -1,6 +1,8 @@
 {
   "name": "@kaj-edgevlm-hvac-project/edge-vlm-hvac-system",
   "version": "1.0.1",
+  "name": "@minseo040203/edge-vlm-hvac-system",
+  "version": "1.0.0",
   "description": "Edge VLM + IoT 융합 기반 지능형 공조(HVAC) 제어 시스템",
   "main": "main.py",
   "scripts": {
