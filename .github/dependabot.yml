@@ -1,4 +1,5 @@
 version: 2
+
 updates:
   # npm 의존성 업데이트
   - package-ecosystem: "npm"
@@ -13,47 +14,44 @@ updates:
       - dependency-type: "all"
     commit-message:
       prefix: "chore(deps)"
-      prefix-major: "chore(deps)!:"
-      prefix-minor: "chore(deps):"
-      prefix-patch: "chore(deps):"
+      prefix-development: "chore(deps-dev)"
       include: "scope"
     pull-request-branch-name:
       separator: "/"
-    reviewers:
-      - "KAJ-EdgeVLM-HVAC-Project"
-    assignees:
-      - "KAJ-EdgeVLM-HVAC-Project"
     labels:
       - "dependencies"
       - "npm"
       - "automated"
-    milestone: 1
     target-branch: "main"
+    rebase-strategy: "auto"
     ignore:
-      # 무시할 패키지 (선택사항)
+      # 필요 시 실제 무시할 패키지명으로 교체
       - dependency-name: "some-package"
-        versions: ["1.x"]
-    # 버전 업데이트 그룹화
+        versions:
+          - "1.x"
     groups:
-      development-dependencies:
-        dependency-types:
-          - "dev"
+      npm-development-dependencies:
+        dependency-type: "development"
         patterns:
           - "@*"
           - "eslint*"
           - "prettier*"
           - "typescript*"
-      production-dependencies:
-        dependency-types:
-          - "prod"
-      patches:
+        update-types:
+          - "minor"
+          - "patch"
+      npm-production-dependencies:
+        dependency-type: "production"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-patch-updates:
+        patterns:
+          - "*"
         update-types:
           - "patch"
-    # 자동 병합 설정
-    rebase-strategy: "auto"
-    automerge-type: "squash"
-    auto-merge: true
-    skip-commit-verification: false
 
   # Python 의존성 업데이트
   - package-ecosystem: "pip"
@@ -69,34 +67,41 @@ updates:
     commit-message:
       prefix: "chore(python-deps)"
       include: "scope"
-    reviewers:
-      - "KAJ-EdgeVLM-HVAC-Project"
     labels:
       - "dependencies"
       - "python"
       - "automated"
     target-branch: "main"
+    rebase-strategy: "auto"
     ignore:
-      # 특정 버전의 PyTorch는 Jetson 호환성 때문에 고정
+      # Jetson 호환성을 위해 PyTorch 계열은 특정 이상 버전 업데이트 방지
       - dependency-name: "torch"
-        versions: [">=2.1"]
+        versions:
+          - ">=2.1"
       - dependency-name: "torchvision"
-        versions: [">=0.17"]
+        versions:
+          - ">=0.17"
     groups:
-      pytorch-deps:
+      pytorch-dependencies:
         patterns:
-          - "torch*"
-          - "torchvision*"
+          - "torch"
+          - "torchvision"
+          - "torchaudio"
         update-types:
           - "patch"
-      transformers-deps:
+      transformers-dependencies:
         patterns:
           - "transformers*"
           - "accelerate*"
           - "qwen*"
-      other-deps:
-        dependency-types:
-          - "prod"
+        update-types:
+          - "minor"
+          - "patch"
+      python-patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
 
   # Docker 베이스 이미지 업데이트
   - package-ecosystem: "docker"
@@ -106,17 +111,24 @@ updates:
       day: "wednesday"
       time: "04:00"
       timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(docker)"
       include: "scope"
-    reviewers:
-      - "KAJ-EdgeVLM-HVAC-Project"
     labels:
       - "dependencies"
       - "docker"
       - "infrastructure"
       - "automated"
     target-branch: "main"
+    rebase-strategy: "auto"
+    groups:
+      docker-base-images:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # GitHub Actions 업데이트
   - package-ecosystem: "github-actions"
@@ -126,17 +138,21 @@ updates:
       day: "thursday"
       time: "04:30"
       timezone: "Asia/Seoul"
+    open-pull-requests-limit: 5
     commit-message:
       prefix: "ci(actions)"
       include: "scope"
-    reviewers:
-      - "KAJ-EdgeVLM-HVAC-Project"
     labels:
+      - "dependencies"
       - "ci/cd"
       - "github-actions"
       - "automated"
     target-branch: "main"
-    # Actions는 패치만 자동 업데이트
-    auto-merge: true
-    automerge-type: "squash"
     rebase-strategy: "auto"
+    groups:
+      github-actions-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

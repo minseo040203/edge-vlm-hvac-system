@@ -1,10 +1,13 @@
-name: 🐳 Docker 이미지 빌드 & 푸시
+name: Docker 이미지 빌드 및 푸시
 
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*.*.*'
     paths:
       - 'Dockerfile'
+      - '.dockerignore'
       - 'requirements_jetson.txt'
       - 'week9/**'
       - '.github/workflows/docker-build-push.yml'
@@ -15,48 +18,55 @@ on:
 permissions:
   contents: read
   packages: write
+  security-events: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push:
+  build-test-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - name: 📥 체크아웃
+      - name: 체크아웃
         uses: actions/checkout@v4
 
-      - name: 🔐 Container Registry 로그인
+      - name: QEMU 에뮬레이션 설정
+        uses: docker/setup-qemu-action@v3
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: 로컬 실행 검증용 이미지 빌드
+        run: docker build -t edge-vlm-hvac:test .
+
+      - name: 로컬 실행 검증
+        run: |
+          docker run --rm edge-vlm-hvac:test python3 -c "print('Docker container works')"
+
+      - name: Container Registry 로그인
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 📊 메타데이터 추출
+      - name: 메타데이터 추출
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
+            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: 🛠 QEMU 에뮬레이션 설정
-        uses: docker/setup-qemu-action@v3
-
-      - name: 🏗 Docker Buildx 설정
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🐳 Docker 이미지 빌드 & 푸시
+      - name: Docker 이미지 빌드 및 푸시
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -68,42 +78,30 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: 🧪 로컬 실행 검증 (PR 또는 main)
-        if: always()
-        run: |
-          echo "🐳 Docker 이미지 빌드 완료"
-          echo ""
-          echo "**이미지 정보:**"
-          echo "- 레지스트리: ${{ env.REGISTRY }}"
-          echo "- 이름: ${{ env.IMAGE_NAME }}"
-          echo "- 태그: ${{ steps.meta.outputs.tags }}"
-          echo ""
-          echo "**로컬 검증:**"
-          echo "- 이미지 다운로드: \`docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`"
-          echo "- 로컬 실행: \`docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest\`"
-
-      - name: 📝 배포 결과 요약
+      - name: 배포 결과 요약
         if: success()
         run: |
-          cat > /tmp/docker_build_summary.txt << 'EOF'
-          ✅ Docker 빌드 및 푸시 완료
-          
+          cat > /tmp/docker_build_summary.txt << EOF
+          Docker 빌드 및 푸시 완료
+
           이미지 정보:
           - Registry: ${{ env.REGISTRY }}
           - Repository: ${{ env.IMAGE_NAME }}
           - Tags: ${{ steps.meta.outputs.tags }}
-          
+
           실행 명령어:
-          docker run -it ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
           플랫폼 지원:
           - linux/amd64
           - linux/arm64
           EOF
+
           cat /tmp/docker_build_summary.txt
 
-      - name: 📤 배포 결과를 Artifact로 저장
-        if: always()
+      - name: 배포 결과를 Artifact로 저장
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: docker-build-summary
@@ -111,12 +109,17 @@ jobs:
           retention-days: 30
 
   security-scan:
-    needs: build-and-push
+    needs: build-test-and-push
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
-    
+
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+
     steps:
-      - name: 🔒 Trivy 보안 스캔
+      - name: Trivy 보안 스캔
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
@@ -124,7 +127,7 @@ jobs:
           output: 'trivy-results.sarif'
         continue-on-error: true
 
-      - name: 📊 Trivy 결과 업로드
+      - name: Trivy 결과 업로드
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:

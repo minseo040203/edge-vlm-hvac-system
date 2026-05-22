@@ -14,11 +14,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/KAJ-EdgeVLM-HVAC-Project/edge-vlm-hvac-system.git"
+    "url": "git+https://github.com/KAJ-EdgeVLM-HVAC-Project/edge-vlm-hvac-system.git"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/kaj-edgevlm-hvac-project"
+    "registry": "https://npm.pkg.github.com"
   },
+  "files": [
+    "main.py",
+    "README.md",
+    "package.json",
+    "requirements_jetson.txt",
+    "src/",
+    "week9/"
+  ],
   "keywords": [
     "hvac",
     "iot",
@@ -30,9 +38,6 @@
   ],
   "author": "KAJ-EdgeVLM-HVAC-Project",
   "license": "MIT",
-  "devDependencies": {
-    "@snyk/protect": "^1.1271.0"
-  },
   "engines": {
     "node": ">=18.0.0"
   }
