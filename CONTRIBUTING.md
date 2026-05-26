@@ -1,50 +1,132 @@
 # Contributing Guide
 
-## 🌿 브랜치 전략 (GitHub Flow)
+Edge VLM HVAC System 프로젝트에 기여하는 방법을 안내합니다.
 
-- `main` 브랜치는 항상 배포 가능한 상태 유지
-- 새 작업은 항상 `main`에서 브랜치 생성
-- 브랜치 네이밍 규칙:
-  - `feature/작업내용`
-  - `fix/버그내용`
-  - `docs/문서내용`
-  - `refactor/리팩토링내용`
+---
 
-## 📝 커밋 메시지 컨벤션 (Conventional Commits)
-```
-<type>(<scope>): <subject>
+## 개발 환경
+
+```bash
+git clone https://github.com/minseo040203/edge-vlm-hvac-system.git
+cd edge-vlm-hvac-system
 ```
 
-| Type | 설명 |
-|------|------|
+프런트엔드 실행:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## 브랜치 전략
+
+| 브랜치 | 설명 |
+|--------|------|
+| `main` | 안정 배포 브랜치 |
+| `feature/*` | 기능 개발 |
+| `fix/*` | 버그 수정 |
+| `docs/*` | 문서 수정 |
+| `test/*` | 테스트 추가 |
+
+---
+
+## PR 제출 전 확인
+
+Pull Request를 만들기 전에 아래 명령을 실행합니다.
+
+```bash
+cd frontend
+npm run test:coverage
+npm run e2e
+npm run build
+```
+
+---
+
+## 커밋 메시지 규칙
+
+| Prefix | 설명 |
+|--------|------|
 | `feat` | 새로운 기능 |
 | `fix` | 버그 수정 |
-| `docs` | 문서 변경 |
-| `refactor` | 코드 리팩토링 |
-| `test` | 테스트 추가/수정 |
-| `chore` | 빌드/설정 변경 |
+| `docs` | 문서 수정 |
+| `test` | 테스트 추가 |
+| `ci` | CI/CD 수정 |
+| `refactor` | 리팩토링 |
+| `chore` | 기타 작업 |
 
-## 🔍 코드 리뷰 가이드
+예시:
 
-### 리뷰 태그 시스템
-- `[MUST]` 반드시 수정 필요 (로직 오류, 보안 취약점)
-- `[SHOULD]` 수정 강력 권장
-- `[NITS]` 사소한 제안 (수정 선택)
-- `[QUESTION]` 코드 의도 확인
-- `[PRAISE]` 잘 작성된 코드 칭찬
+```text
+feat: add HVAC control recommendation logic
+test: add Playwright E2E scenario
+docs: update final project README
+```
 
-### 리뷰어 체크리스트
-- [ ] 코드가 요구사항을 충족하는가?
-- [ ] 테스트가 충분한가?
-- [ ] 보안 취약점은 없는가?
-- [ ] 코드가 읽기 쉬운가?
-- [ ] 문서화가 충분한가?
+---
 
-## 🚀 PR 프로세스
+## 코드 리뷰 기준
 
-1. `main`에서 feature 브랜치 생성
-2. 작업 후 Conventional Commits 규칙으로 커밋
-3. PR 생성 (템플릿 작성)
-4. 리뷰어 지정
-5. CI 통과 확인
-6. 승인 후 Merge
+PR은 다음 기준을 만족해야 합니다.
+
+1. 테스트 통과
+2. 주요 기능 설명 포함
+3. 보안/비밀키 노출 없음
+4. 문서 변경이 필요한 경우 README 업데이트
+5. 기존 기능 회귀 없음
+
+---
+
+## Issue 작성 규칙
+
+버그 리포트에는 다음 내용을 포함합니다.
+
+```text
+- 발생 환경
+- 재현 방법
+- 기대 동작
+- 실제 동작
+- 로그 또는 스크린샷
+```
+
+기능 제안에는 다음 내용을 포함합니다.
+
+```text
+- 문제 정의
+- 제안 기능
+- 기대 효과
+- 대안 검토
+```
+
+---
+
+## 테스트
+
+프런트엔드 단위 테스트와 E2E 테스트를 실행합니다.
+
+```bash
+cd frontend
+npm run test:coverage
+npm run e2e
+```
+
+---
+
+## 보안
+
+다음 정보는 절대 커밋하지 않습니다.
+
+1. API Key
+2. GitHub Token
+3. Vercel Token
+4. 개인 인증 정보
+5. `.env` 파일
+
+---
+
+## 문의
+
+프로젝트 관련 문의는 GitHub Issue를 통해 남깁니다.

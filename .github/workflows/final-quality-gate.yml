@@ -1,0 +1,72 @@
+name: Final Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'RETROSPECTIVE.md'
+      - '.github/workflows/final-quality-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  final-quality-gate:
+    name: Final quality gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required repository documents
+        run: |
+          test -f README.md
+          test -f CONTRIBUTING.md
+          test -f CODE_OF_CONDUCT.md
+          test -f LICENSE
+          test -f CHANGELOG.md
+          test -f RETROSPECTIVE.md
+          test -f docs/ADR-001-final-architecture.md
+          test -f docs/RUNBOOK.md
+          test -f docs/MODEL_CARD.md
+          echo "Required documents exist."
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Run unit tests with coverage
+        working-directory: frontend
+        run: npm run test:coverage
+
+      - name: Run frontend build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Mini eval for HVAC recommendation logic
+        working-directory: frontend
+        run: |
+          node -e "import('./src/core/hvacControl.js').then(m => { const r = m.generateControlRecommendation({ temperature: 29, humidity: 55, occupancy: 5, co2: 850 }, 24); if (r.mode !== 'cooling') { throw new Error('Mini eval failed'); } console.log('Mini eval passed:', r); })"
+
+      - name: Upload final quality gate summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-quality-gate-summary
+          path: |
+            frontend/coverage
+          retention-days: 30
