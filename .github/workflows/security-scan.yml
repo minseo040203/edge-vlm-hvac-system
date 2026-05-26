@@ -4,15 +4,15 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - 'package.json'
-      - 'package-lock.json'
+      - 'week9/package.json'
+      - 'week9/package-lock.json'
       - 'requirements_jetson.txt'
       - 'week9/**'
       - '.github/workflows/security-scan.yml'
   pull_request:
     branches: [main]
   schedule:
-    # 매일 UTC 0시에 실행
+    # 매일 UTC 0시 실행 = 한국 시간 오전 9시
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -26,7 +26,7 @@ jobs:
   npm-audit:
     runs-on: ubuntu-latest
     name: 📦 npm audit 스캔
-    
+
     steps:
       - name: 📥 체크아웃
         uses: actions/checkout@v4
@@ -34,7 +34,7 @@ jobs:
       - name: 📍 Node.js 설정
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: 📦 의존성 설치
         working-directory: ./week9
@@ -45,63 +45,79 @@ jobs:
         working-directory: ./week9
         run: |
           npm audit --json > audit-report.json || true
-          npm audit --production > audit-output.txt 2>&1 || true
+          npm audit --omit=dev > audit-output.txt 2>&1 || true
           cat audit-output.txt
 
       - name: 📊 Audit 결과 분석
         id: analyze
         working-directory: ./week9
         run: |
-          # JSON 파일에서 취약점 수 추출
-          VULNERABILITIES=$(jq '.metadata.vulnerabilities.total' audit-report.json 2>/dev/null || echo "0")
-          CRITICAL=$(jq '.metadata.vulnerabilities.critical' audit-report.json 2>/dev/null || echo "0")
-          HIGH=$(jq '.metadata.vulnerabilities.high' audit-report.json 2>/dev/null || echo "0")
-          
+          VULNERABILITIES=$(jq '.metadata.vulnerabilities.total // 0' audit-report.json 2>/dev/null || echo "0")
+          CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' audit-report.json 2>/dev/null || echo "0")
+          HIGH=$(jq '.metadata.vulnerabilities.high // 0' audit-report.json 2>/dev/null || echo "0")
+          MODERATE=$(jq '.metadata.vulnerabilities.moderate // 0' audit-report.json 2>/dev/null || echo "0")
+          LOW=$(jq '.metadata.vulnerabilities.low // 0' audit-report.json 2>/dev/null || echo "0")
+
           echo "vulnerabilities=$VULNERABILITIES" >> $GITHUB_OUTPUT
           echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
           echo "high=$HIGH" >> $GITHUB_OUTPUT
-          
+          echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
+          echo "low=$LOW" >> $GITHUB_OUTPUT
+
           echo "📊 npm audit 결과:"
           echo "- 총 취약점: $VULNERABILITIES"
           echo "- CRITICAL: $CRITICAL"
           echo "- HIGH: $HIGH"
+          echo "- MODERATE: $MODERATE"
+          echo "- LOW: $LOW"
 
       - name: 📤 Audit 결과 업로드
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: npm-audit-report
-          path: week9/audit-report.json
+          path: |
+            week9/audit-report.json
+            week9/audit-output.txt
           retention-days: 30
 
-      - name: 🐛 취약점이 발견되었을 때 이슈 생성
-        if: failure() && (steps.analyze.outputs.critical > 0 || steps.analyze.outputs.high > 0)
+      - name: 🐛 HIGH 이상 취약점 발견 시 이슈 생성
+        if: steps.analyze.outputs.critical != '0' || steps.analyze.outputs.high != '0'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const auditData = JSON.parse(fs.readFileSync('week9/audit-report.json', 'utf8'));
-            
+
+            const auditPath = 'week9/audit-report.json';
+            const auditData = JSON.parse(fs.readFileSync(auditPath, 'utf8'));
+
+            const total = auditData.metadata?.vulnerabilities?.total ?? 0;
+            const critical = auditData.metadata?.vulnerabilities?.critical ?? 0;
+            const high = auditData.metadata?.vulnerabilities?.high ?? 0;
+            const moderate = auditData.metadata?.vulnerabilities?.moderate ?? 0;
+            const low = auditData.metadata?.vulnerabilities?.low ?? 0;
+
             let issueBody = `## ⚠️ npm audit 보안 취약점 감지\n\n`;
             issueBody += `### 📊 통계\n`;
-            issueBody += `- 총 취약점: ${auditData.metadata.vulnerabilities.total}\n`;
-            issueBody += `- CRITICAL: ${auditData.metadata.vulnerabilities.critical}\n`;
-            issueBody += `- HIGH: ${auditData.metadata.vulnerabilities.high}\n`;
-            issueBody += `- MODERATE: ${auditData.metadata.vulnerabilities.moderate}\n\n`;
-            
+            issueBody += `- 총 취약점: ${total}\n`;
+            issueBody += `- CRITICAL: ${critical}\n`;
+            issueBody += `- HIGH: ${high}\n`;
+            issueBody += `- MODERATE: ${moderate}\n`;
+            issueBody += `- LOW: ${low}\n\n`;
+
             issueBody += `### 📋 상세 정보\n`;
-            issueBody += `\`\`\`json\n`;
-            issueBody += JSON.stringify(auditData.vulnerabilities, null, 2).substring(0, 2000);
-            issueBody += `\n\`\`\`\n\n`;
-            
+            issueBody += `자세한 JSON 결과는 GitHub Actions Artifact의 \`npm-audit-report\`를 확인하세요.\n\n`;
+
             issueBody += `### 🔧 해결 방법\n`;
-            issueBody += `1. \`npm audit fix\` 명령어 실행\n`;
-            issueBody += `2. 자세한 내용: [npm audit 문서](https://docs.npmjs.com/cli/v9/commands/npm-audit)\n`;
-            
-            github.rest.issues.create({
+            issueBody += `1. 로컬에서 \`cd week9 && npm audit\` 실행\n`;
+            issueBody += `2. 가능한 경우 \`cd week9 && npm audit fix\` 실행\n`;
+            issueBody += `3. 자동 수정이 어려운 경우 취약 패키지 버전 수동 업데이트\n`;
+            issueBody += `4. 수정 후 Pull Request 생성 및 보안 스캔 재실행\n`;
+
+            await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `🔒 [보안] npm audit - ${auditData.metadata.vulnerabilities.total}개 취약점 감지`,
+              title: `🔒 [보안] npm audit - ${total}개 취약점 감지`,
               body: issueBody,
               labels: ['security', 'npm-audit', 'dependencies']
             });
@@ -109,7 +125,7 @@ jobs:
   snyk-scan:
     runs-on: ubuntu-latest
     name: 🔐 Snyk 보안 스캔
-    
+
     steps:
       - name: 📥 체크아웃
         uses: actions/checkout@v4
@@ -117,17 +133,28 @@ jobs:
       - name: 📍 Node.js 설정
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
+
+      - name: 📦 의존성 설치
+        working-directory: ./week9
+        run: npm ci --prefer-offline
 
       - name: 🔐 Snyk 설치
         run: npm install -g snyk
 
       - name: 🔍 Snyk 스캔 실행
+        id: snyk_test
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         working-directory: ./week9
         run: |
-          snyk auth $SNYK_TOKEN
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "⚠️ SNYK_TOKEN이 설정되지 않아 Snyk 스캔을 건너뜁니다."
+            echo '{"message":"SNYK_TOKEN is not configured"}' > snyk-report.json
+            exit 0
+          fi
+
+          snyk auth "$SNYK_TOKEN"
           snyk test --json > snyk-report.json || true
           snyk test --severity-threshold=high || true
         continue-on-error: true
@@ -140,16 +167,34 @@ jobs:
           path: week9/snyk-report.json
           retention-days: 30
 
-      - name: 📊 Snyk SARIF 변환
-        if: always()
+      - name: 📊 Snyk SARIF 생성
+        id: snyk_sarif_generate
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        working-directory: ./week9
         run: |
-          cd week9
-          snyk test --sarif > snyk-results.sarif 2>/dev/null || true
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "⚠️ SNYK_TOKEN이 없어 SARIF 생성을 건너뜁니다."
+            exit 0
+          fi
+
+          snyk test --sarif > snyk-results.sarif || true
         continue-on-error: true
+
+      - name: 📁 Snyk SARIF 파일 확인
+        id: snyk_sarif_check
+        run: |
+          if [ -s week9/snyk-results.sarif ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Snyk SARIF 파일이 존재합니다."
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Snyk SARIF 파일이 없거나 비어 있습니다."
+          fi
 
       - name: 📤 Snyk 결과를 GitHub Security에 업로드
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: steps.snyk_sarif_check.outputs.exists == 'true'
         with:
           sarif_file: 'week9/snyk-results.sarif'
         continue-on-error: true
@@ -157,21 +202,27 @@ jobs:
   python-security-check:
     runs-on: ubuntu-latest
     name: 🐍 Python 보안 스캔
-    
+
     steps:
       - name: 📥 체크아웃
         uses: actions/checkout@v4
 
       - name: 📍 Python 설정
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: '3.10'
 
       - name: 🔧 Safety 설치
         run: pip install safety
 
       - name: 🔍 Safety 스캔 실행
         run: |
+          if [ ! -f requirements_jetson.txt ]; then
+            echo '{"message":"requirements_jetson.txt not found"}' > safety-report.json
+            echo "⚠️ requirements_jetson.txt 파일이 없어 Safety 스캔을 건너뜁니다."
+            exit 0
+          fi
+
           safety check --file requirements_jetson.txt --json > safety-report.json || true
           safety check --file requirements_jetson.txt || true
         continue-on-error: true
@@ -189,7 +240,7 @@ jobs:
     runs-on: ubuntu-latest
     name: 📋 보안 리포트 생성
     if: always()
-    
+
     steps:
       - name: 📥 체크아웃
         uses: actions/checkout@v4
@@ -201,34 +252,38 @@ jobs:
 
       - name: 📝 통합 보안 리포트 생성
         run: |
-          cat > SECURITY_REPORT.md << 'EOF'
+          cat > SECURITY_REPORT.md << EOF
           # 🔒 보안 스캔 리포트
-          
+
           **생성일:** $(date)
-          
+
           ## 📊 스캔 요약
-          
+
           ### npm audit
           - 상태: ${{ needs.npm-audit.result }}
-          - 결과: [npm-audit-report](security-reports/npm-audit-report)
-          
+          - 결과: GitHub Actions Artifact의 \`npm-audit-report\` 확인
+
           ### Snyk
           - 상태: ${{ needs.snyk-scan.result }}
-          - 결과: [snyk-report](security-reports/snyk-report)
-          
+          - 결과: GitHub Actions Artifact의 \`snyk-report\` 확인
+
           ### Python Safety
           - 상태: ${{ needs.python-security-check.result }}
-          - 결과: [python-safety-report](security-reports/python-safety-report)
-          
+          - 결과: GitHub Actions Artifact의 \`python-safety-report\` 확인
+
           ## 🔧 권장 조치 사항
-          
-          1. **npm audit fix** 실행
-          2. Snyk 토큰 설정 확인
-          3. 정기적인 보안 업데이트 검토
-          
+
+          1. npm 취약점은 \`cd week9 && npm audit\`으로 확인
+          2. 가능한 경우 \`cd week9 && npm audit fix\` 실행
+          3. Snyk 사용 전 GitHub Secrets에 \`SNYK_TOKEN\` 등록
+          4. Python 취약점은 \`requirements_jetson.txt\` 버전 업데이트
+          5. HIGH 이상 취약점은 GitHub Issue로 추적
+
           ---
-          *이 리포트는 자동으로 생성되었습니다.*
+
+          이 리포트는 GitHub Actions에서 자동 생성되었습니다.
           EOF
+
           cat SECURITY_REPORT.md
 
       - name: 📤 리포트 Artifact 저장
@@ -246,22 +301,11 @@ jobs:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('SECURITY_REPORT.md', 'utf8');
-            
-            github.rest.issues.createComment({
+
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: report
             });
-        continue-on-error: true
-
-      - name: 📌 리포트 저장소에 푸시
-        if: github.ref == 'refs/heads/main' && always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add SECURITY_REPORT.md || true
-          git commit -m "docs: 보안 스캔 리포트 업데이트 [skip ci]" || true
-          git push origin main || true
         continue-on-error: true
