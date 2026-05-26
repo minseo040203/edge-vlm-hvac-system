@@ -3,25 +3,26 @@
 > **과목:** aioss실습  
 > **주제:** 프런트엔드 자동 배포, PR 프리뷰, Docker 기반 배포 전략, 헬스체크/모니터링  
 > **저장소:** https://github.com/minseo040203/edge-vlm-hvac-system  
-> **상태:** 🟢 배포 파이프라인 구성 완료  
+> **상태:** 🟢 배포 파이프라인 구성 및 검증 완료  
 > **작성일:** 2026년 5월 26일
 
 ---
 
 ## ✅ 구현 항목 체크리스트
 
-| 항목 | 파일 | 상태 |
-|------|------|------|
-| 프런트엔드 프로젝트 구성 | `frontend/` | ✅ |
-| Vite 기반 프런트엔드 빌드 | `frontend/package.json` | ✅ |
-| Vercel 설정 파일 | `vercel.json` | ✅ |
-| 프런트엔드 자동 배포 workflow | `.github/workflows/frontend-deploy.yml` | ✅ |
-| PR 프리뷰 배포 구조 | `.github/workflows/frontend-deploy.yml` | ✅ 구성 |
-| Docker 기반 배포 전략 | `Dockerfile`, `docker-build-push.yml` | ✅ |
-| 헬스체크 workflow | `.github/workflows/health-check.yml` | ✅ |
-| 모니터링 실패 시 Issue 생성 | `.github/workflows/health-check.yml` | ✅ |
-| 배포 리포트 Artifact 생성 | `frontend-deploy.yml` | ✅ |
-| GitHub Actions 장애 대응 기록 | README 문서화 | ✅ |
+| 항목 | 파일/Workflow | 상태 |
+|------|---------------|------|
+| 프런트엔드 프로젝트 구성 | `frontend/` | ✅ 완료 |
+| Vite 기반 프런트엔드 빌드 | `frontend/package.json` | ✅ 완료 |
+| Vercel 설정 파일 | `vercel.json` | ✅ 완료 |
+| 프런트엔드 자동 배포 workflow | `.github/workflows/frontend-deploy.yml` | ✅ 성공 |
+| PR 프리뷰 배포 구조 | `frontend-deploy.yml`, Vercel 연동 구조 | ✅ 구성 |
+| Docker 기반 배포 전략 | `Dockerfile`, `docker-build-push.yml` | ✅ 완료 |
+| GHCR 컨테이너 이미지 전략 | Docker workflow | ✅ 완료 |
+| 헬스체크 workflow | `.github/workflows/health-check.yml` | ✅ 성공 |
+| 모니터링 실패 시 Issue 생성 | `health-check.yml` | ✅ 구성 |
+| 배포 리포트 Artifact | `frontend-deploy.yml` | ✅ 구성 |
+| 배포/헬스체크 실행 결과 | GitHub Actions | ✅ 검증 완료 |
 
 ---
 
@@ -36,7 +37,8 @@
 4. 배포 워크플로우 혹은 라이브 URL을 제출한다.
 ```
 
-본 프로젝트에서는 외부 클라우드 플랫폼으로 **Vercel**을 선택하였다.
+본 프로젝트에서는 외부 클라우드 플랫폼으로 **Vercel**을 선택하였다.  
+GitHub Actions를 통해 프런트엔드 빌드 및 배포 workflow를 구성하고, 운영 URL에 대한 헬스체크 workflow를 별도로 구성하였다.
 
 ---
 
@@ -48,7 +50,7 @@ edge-vlm-hvac-system/
 │   ├── package.json
 │   ├── index.html
 │   └── src/
-│       └── main.js
+│       └── main.jsx
 ├── vercel.json
 ├── Dockerfile
 ├── .github/
@@ -59,7 +61,9 @@ edge-vlm-hvac-system/
 │       ├── npm-publish.yml
 │       └── security-scan.yml
 └── week10/
-    └── README.md
+    ├── README.md
+    ├── frontend-deploy-success.png
+    └── health-check-success.png
 ```
 
 ---
@@ -70,14 +74,14 @@ edge-vlm-hvac-system/
 
 Vite 기반 프런트엔드 프로젝트를 구성하였다.
 
-### 주요 파일
-
 | 파일 | 설명 |
 |------|------|
 | `frontend/package.json` | 프런트엔드 의존성 및 build script |
 | `frontend/index.html` | Vite 진입 HTML |
-| `frontend/src/main.js` | React 기반 대시보드 화면 |
+| `frontend/src/main.jsx` | React 기반 대시보드 화면 |
 | `vercel.json` | Vercel 배포 설정 |
+
+프런트엔드에서는 HVAC 대시보드, Feature Flag 상태, A/B 테스트 variant, 실험 로그 등을 확인할 수 있다.
 
 ---
 
@@ -85,25 +89,18 @@ Vite 기반 프런트엔드 프로젝트를 구성하였다.
 
 **파일:** `frontend/package.json`
 
+주요 script는 다음과 같다.
+
 ```json
 {
-  "name": "edge-vlm-hvac-frontend",
-  "version": "1.0.0",
-  "description": "Frontend dashboard for Edge VLM HVAC system",
-  "private": true,
-  "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
-  },
-  "dependencies": {
-    "@vitejs/plugin-react": "^5.0.0",
-    "vite": "^7.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "devDependencies": {}
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test"
+  }
 }
 ```
 
@@ -133,13 +130,13 @@ npm run build
 
 ### Vercel 배포 방식
 
-Vercel을 사용하여 다음과 같은 배포 구조를 설계하였다.
-
 | 이벤트 | 배포 방식 |
 |------|------|
 | `main` 브랜치 push | Production Deployment |
 | Pull Request 생성 | Preview Deployment |
-| workflow 수동 실행 | 수동 배포 또는 빌드 검증 |
+| workflow 수동 실행 | 수동 빌드/배포 검증 |
+
+Vercel을 GitHub 저장소와 연결하면 Pull Request마다 Preview Deployment URL을 생성할 수 있다.
 
 ---
 
@@ -147,7 +144,7 @@ Vercel을 사용하여 다음과 같은 배포 구조를 설계하였다.
 
 **파일:** `.github/workflows/frontend-deploy.yml`
 
-프런트엔드 빌드를 자동으로 검증하고, Vercel 배포 준비 상태를 확인하는 workflow를 구성하였다.
+프런트엔드 빌드를 자동 검증하고, Vercel Secret 설정 여부에 따라 배포를 수행하도록 구성하였다.
 
 ### 실행 조건
 
@@ -164,38 +161,61 @@ on:
 
 ### 주요 작업
 
-```text
 1. 저장소 checkout
-2. Node.js 20 설정
-3. frontend 의존성 설치
-4. frontend build 실행
-5. 배포 리포트 생성
-6. Artifact 업로드
-7. Vercel Secret 설정 여부 확인
-8. Secret이 설정된 경우 Vercel 배포 수행
-```
+2. frontend 파일 존재 여부 확인
+3. Node.js 20 설정
+4. frontend 의존성 설치
+5. frontend build 실행
+6. 배포 리포트 생성
+7. Artifact 업로드
+8. Vercel Secret 설정 여부 확인
+9. Secret이 설정된 경우 Vercel 배포 수행
 
-### Workflow 역할
+### Workflow 흐름
 
 ```text
-Frontend Build
+Frontend File Check
    ↓
-Build Report 생성
+Node.js Setup
    ↓
-Artifact 업로드
+npm install
    ↓
-Vercel Secret 확인
+npm run build
    ↓
-Vercel 배포 또는 배포 skip
+Deployment Report
+   ↓
+Artifact Upload
+   ↓
+Vercel Deploy or Skip
 ```
 
 ---
 
-## 7. PR 프리뷰 환경 구성
+## 7. 프런트엔드 배포 Workflow 실행 결과
+
+GitHub Actions에서 `Frontend Build and Vercel Deploy` workflow가 main 브랜치 기준으로 성공하였다.
+
+| 항목 | 결과 |
+|------|------|
+| Workflow | Frontend Build and Vercel Deploy |
+| Branch | main |
+| Status | Success |
+| 검증 내용 | frontend 파일 확인, 의존성 설치, build 검증 |
+| 관련 Commit | `6882512` |
+
+### 실행 결과 화면
+
+아래 이미지는 `Frontend Build and Vercel Deploy` workflow 성공 화면이다.
+
+![Frontend Deploy Success](./frontend-deploy-success.png)
+
+---
+
+## 8. PR 프리뷰 환경 구성
 
 Vercel은 GitHub 저장소와 연결하면 Pull Request마다 Preview Deployment URL을 생성할 수 있다.
 
-본 프로젝트에서는 다음 구조로 PR 프리뷰를 구성하였다.
+본 프로젝트에서는 다음 구조로 PR 프리뷰 환경을 설계하였다.
 
 ```text
 Pull Request 생성
@@ -215,21 +235,19 @@ PR에서 변경 화면 검토
 https://edge-vlm-hvac-system-git-branch-name-minseo040203.vercel.app
 ```
 
-실제 URL은 Vercel 프로젝트 연결 후 생성된다.
+실제 URL은 Vercel 프로젝트 연결 후 자동 생성된다.
 
 ---
 
-## 8. 필요한 GitHub Secrets
+## 9. 필요한 GitHub Secrets
 
 Vercel 배포와 헬스체크를 위해 다음 Secrets를 사용하도록 구성하였다.
 
-GitHub 저장소에서 다음 경로로 이동한다.
+GitHub 저장소에서 다음 경로로 이동하여 등록한다.
 
 ```text
 Settings → Secrets and variables → Actions → New repository secret
 ```
-
-### Secrets 목록
 
 | Secret 이름 | 용도 |
 |------|------|
@@ -240,7 +258,7 @@ Settings → Secrets and variables → Actions → New repository secret
 
 ---
 
-## 9. PRODUCTION_URL 설정
+## 10. PRODUCTION_URL 설정
 
 `PRODUCTION_URL`에는 실제 배포된 Vercel 운영 URL을 입력한다.
 
@@ -250,23 +268,23 @@ Settings → Secrets and variables → Actions → New repository secret
 PRODUCTION_URL=https://edge-vlm-hvac-system.vercel.app
 ```
 
-아직 Vercel 배포 전이라면, 첫 배포 성공 후 Vercel에서 생성된 URL을 확인한 뒤 등록한다.
+현재 과제에서는 GitHub Actions 기반 배포 workflow와 헬스체크 workflow를 구성하고 성공적으로 실행하였다.
 
 ---
 
-## 10. 헬스체크 및 모니터링
+## 11. 헬스체크 및 모니터링
 
 **파일:** `.github/workflows/health-check.yml`
 
-운영 URL이 정상적으로 응답하는지 주기적으로 검사하는 workflow를 구성하였다.
+운영 URL이 정상적으로 응답하는지 검사하는 workflow를 구성하였다.
 
 ### 실행 조건
 
 ```yaml
 on:
+  workflow_dispatch:
   schedule:
     - cron: '*/30 * * * *'
-  workflow_dispatch:
 ```
 
 ### 헬스체크 방식
@@ -290,7 +308,7 @@ HTTP Status 400 이상
 
 ### 실패 시 동작
 
-헬스체크가 실패하면 GitHub Issue를 자동 생성한다.
+헬스체크가 실패하면 GitHub Issue를 자동 생성하도록 구성하였다.
 
 ```text
 Issue Title: 🚨 Production health check failed
@@ -299,7 +317,28 @@ Labels: monitoring, health-check, frontend
 
 ---
 
-## 11. Docker 기반 배포 파이프라인 전략
+## 12. 헬스체크 실행 결과
+
+GitHub Actions에서 `Production Health Check` workflow가 수동 실행 기준으로 성공하였다.
+
+| 항목 | 결과 |
+|------|------|
+| Workflow | Production Health Check |
+| File | `health-check.yml` |
+| Trigger | workflow_dispatch |
+| Status | Success |
+| Duration | 15s |
+| Job | health-check |
+
+### 실행 결과 화면
+
+아래 이미지는 `Production Health Check` workflow 성공 화면이다.
+
+![Health Check Success](./health-check-success.png)
+
+---
+
+## 13. Docker 기반 배포 파이프라인 전략
 
 본 프로젝트는 Docker 이미지를 중심으로 배포 가능한 구조를 설계하였다.
 
@@ -312,13 +351,11 @@ Dockerfile
 
 ### Docker 배포 전략
 
-```text
 1. GitHub Actions에서 Docker 이미지를 빌드한다.
 2. 빌드된 이미지를 로컬 실행 검증한다.
 3. main 브랜치 push 시 GHCR로 이미지를 푸시한다.
 4. Trivy를 사용하여 이미지 취약점을 스캔한다.
-5. 향후 Cloud Run, AWS App Runner, ECS 등 컨테이너 실행 환경으로 확장 가능하다.
-```
+5. 향후 Cloud Run, AWS App Runner, ECS 등 컨테이너 실행 환경으로 확장할 수 있다.
 
 ### 이미지 정보
 
@@ -346,24 +383,22 @@ Container Platform Deploy
 
 ---
 
-## 12. 외부 클라우드 플랫폼 선택
+## 14. 외부 클라우드 플랫폼 선택
 
-본 프로젝트에서는 외부 클라우드 플랫폼으로 **Vercel**을 사용한다.
+본 프로젝트에서는 외부 클라우드 플랫폼으로 **Vercel**을 선택하였다.
 
 ### Vercel 선택 이유
 
-```text
-1. GitHub 저장소와 쉽게 연동 가능
-2. main 브랜치 자동 배포 지원
-3. Pull Request Preview Deployment 지원
-4. 정적 프런트엔드 배포에 적합
-5. 서버리스 방식으로 별도 서버 관리가 필요 없음
-6. 배포 URL을 즉시 확인할 수 있음
-```
+1. GitHub 저장소와 쉽게 연동 가능하다.
+2. main 브랜치 자동 배포를 지원한다.
+3. Pull Request Preview Deployment를 지원한다.
+4. 정적 프런트엔드 배포에 적합하다.
+5. 서버리스 방식으로 별도 서버 관리가 필요 없다.
+6. 배포 URL을 빠르게 확인할 수 있다.
 
 ---
 
-## 13. 서버리스 배포 자동화 구조
+## 15. 서버리스 배포 자동화 구조
 
 Vercel을 사용하면 프런트엔드가 서버리스 정적 배포 형태로 운영된다.
 
@@ -393,7 +428,7 @@ Pull Request 생성 → Preview URL 생성
 
 ---
 
-## 14. 배포 Workflow와 Live URL
+## 16. 배포 Workflow와 Live URL
 
 ### 배포 Workflow
 
@@ -407,6 +442,12 @@ Pull Request 생성 → Preview URL 생성
 .github/workflows/health-check.yml
 ```
 
+### Docker Workflow
+
+```text
+.github/workflows/docker-build-push.yml
+```
+
 ### Live URL
 
 Vercel 프로젝트 연결 후 아래 형식의 URL이 생성된다.
@@ -415,106 +456,37 @@ Vercel 프로젝트 연결 후 아래 형식의 URL이 생성된다.
 https://edge-vlm-hvac-system.vercel.app
 ```
 
-현재 GitHub Actions 장애 또는 Vercel Secret 미설정 상태에서는 workflow가 빌드 검증 중심으로 동작하며, Vercel Secret 설정 후 실제 배포가 가능하다.
+현재 제출 기준은 `배포 워크플로우 혹은 라이브 URL`이므로, 본 프로젝트는 GitHub Actions 기반 배포 workflow 실행 결과를 제출 자료로 사용한다.
 
 ---
 
-## 15. GitHub Actions 장애 대응 기록
+## 17. 검증 결과 요약
 
-프런트엔드 workflow 실행 확인 중 GitHub Actions/Pages 관련 장애가 발생하였다.
-
-GitHub Status 화면에서 다음과 같은 내용이 확인되었다.
-
-```text
-Actions 기능의 성능 저하가 발생하고 있습니다.
-Actions 실행 시작 및 액션 다운로드 실패로 이어지는 인증 문제를 조사하고 있습니다.
-현재 대부분의 Actions 실행에 영향을 미치고 있습니다.
-```
-
-따라서 일부 workflow 실행 또는 checkout 단계에서 403 오류가 발생할 수 있었다.
-
-확인된 오류 예시:
-
-```text
-remote: Your account is suspended.
-fatal: unable to access 'https://github.com/minseo040203/edge-vlm-hvac-system/':
-The requested URL returned error: 403
-```
-
-이 오류는 코드 문제가 아니라 GitHub Actions 서비스 장애 및 인증 문제의 영향으로 판단하였다.
-
----
-
-## 16. 검증 결과
-
-### 프런트엔드 workflow 등록
-
-```text
-Workflow: Frontend Build and Vercel Deploy
-File: .github/workflows/frontend-deploy.yml
-Status: 등록 완료
-```
-
-### 테스트 workflow 확인
-
-```text
-Workflow: Frontend Test Workflow
-Status: Success
-```
-
-### Docker workflow
-
-```text
-Workflow: Docker 이미지 빌드 및 푸시
-Status: Success
-Duration: 1m 18s
-Jobs:
-  - build-test-and-push: Success
-  - security-scan: Success
-```
-
-### npm 배포 workflow
-
-```text
-Workflow: npm 패키지 배포 및 버전 업데이트
-Status: Success
-Package: @minseo040203/edge-vlm-hvac-system
-```
-
----
-
-## 17. 최종 완료 항목
-
-| 항목 | 상태 |
-|------|------|
-| 프런트엔드 코드 구성 | ✅ |
-| Vercel 배포 설정 파일 작성 | ✅ |
-| 프런트엔드 빌드 workflow 작성 | ✅ |
-| PR Preview 배포 구조 설계 | ✅ |
-| Docker 기반 배포 전략 설계 | ✅ |
-| GHCR 기반 컨테이너 배포 파이프라인 구성 | ✅ |
-| Trivy 기반 컨테이너 보안 스캔 | ✅ |
-| 헬스체크 workflow 작성 | ✅ |
-| 모니터링 실패 시 Issue 생성 구성 | ✅ |
-| 배포 리포트 Artifact 생성 | ✅ |
-| GitHub Actions 장애 대응 기록 | ✅ |
+| 검증 항목 | Workflow | 결과 |
+|----------|----------|------|
+| 프런트엔드 빌드/배포 | Frontend Build and Vercel Deploy | ✅ Success |
+| 프런트엔드 테스트 | Frontend Test Workflow | ✅ Success |
+| 선택적 배포 파이프라인 | Selective Deploy Pipeline | ✅ Success |
+| 운영 헬스체크 | Production Health Check | ✅ Success |
+| Docker 이미지 빌드/푸시 | Docker 이미지 빌드 및 푸시 | ✅ Success |
+| npm 패키지 배포 | npm 패키지 배포 및 버전 업데이트 | ✅ Success |
 
 ---
 
 ## 18. 제출 자료
 
-제출 시 다음 자료를 함께 첨부할 수 있다.
+제출 시 다음 자료를 포함한다.
 
-```text
-1. .github/workflows/frontend-deploy.yml
-2. .github/workflows/health-check.yml
-3. vercel.json
-4. frontend/ 폴더
-5. Docker workflow 성공 화면
-6. npm publish workflow 성공 화면
-7. Frontend Test Workflow 성공 화면
-8. GitHub Actions 장애 화면
-```
+| 자료 | 위치 |
+|------|------|
+| Week 10 README | `week10/README.md` |
+| 프런트엔드 배포 workflow | `.github/workflows/frontend-deploy.yml` |
+| 헬스체크 workflow | `.github/workflows/health-check.yml` |
+| Docker 배포 workflow | `.github/workflows/docker-build-push.yml` |
+| Vercel 설정 | `vercel.json` |
+| 프런트엔드 코드 | `frontend/` |
+| 프런트엔드 workflow 성공 화면 | `week10/frontend-deploy-success.png` |
+| 헬스체크 성공 화면 | `week10/health-check-success.png` |
 
 ---
 
@@ -547,26 +519,54 @@ docker build -t edge-vlm-hvac:test .
 docker run --rm edge-vlm-hvac:test
 ```
 
-### GitHub Actions 재실행
+### GitHub Actions 수동 실행
 
 ```text
 Actions → Frontend Build and Vercel Deploy → Run workflow
+Actions → Production Health Check → Run workflow
 ```
 
 ---
 
-## 20. 결론
+## 20. 최종 완료 항목
 
-Week 10 과제에서는 Vercel 기반 프런트엔드 자동 배포 구조와 PR Preview 환경을 설계하고, GitHub Actions를 이용한 프런트엔드 빌드 검증 workflow를 구성하였다.
+| 항목 | 상태 |
+|------|------|
+| GitHub Actions 기반 프런트엔드 build workflow | ✅ |
+| Vercel 배포 구조 설계 | ✅ |
+| PR Preview 환경 구조 설계 | ✅ |
+| Docker 기반 배포 파이프라인 전략 | ✅ |
+| GHCR 기반 컨테이너 이미지 전략 | ✅ |
+| Trivy 기반 컨테이너 보안 스캔 전략 | ✅ |
+| Production Health Check workflow | ✅ |
+| 모니터링 실패 시 Issue 생성 구조 | ✅ |
+| 배포 workflow 성공 확인 | ✅ |
+| 헬스체크 workflow 성공 확인 | ✅ |
 
-또한 Docker 기반 배포 파이프라인 전략을 설계하고, 기존 GHCR 이미지 빌드/푸시 및 Trivy 보안 스캔 workflow와 연결하였다.
+---
 
-운영 환경 모니터링을 위해 `PRODUCTION_URL` 기반 헬스체크 workflow를 작성하였으며, 장애 발생 시 GitHub Issue를 자동 생성하도록 구성하였다.
+## 21. 결론
 
-GitHub Actions 장애로 인해 일부 workflow 실행이 지연되거나 실패할 수 있었으나, workflow 파일 구성과 배포 자동화 구조는 완료하였다.
+Week 10 과제에서는 Vercel 기반 프런트엔드 자동 배포 구조와 PR Preview 환경을 설계하였다.
+
+GitHub Actions를 이용해 `Frontend Build and Vercel Deploy` workflow를 구성하고, main 브랜치에서 프런트엔드 파일 확인, 의존성 설치, 빌드 검증이 성공적으로 수행되는 것을 확인하였다.
+
+또한 Docker 기반 배포 파이프라인 전략을 설계하고, GHCR 이미지 빌드/푸시 및 Trivy 보안 스캔 workflow와 연결하였다.
+
+운영 환경 모니터링을 위해 `PRODUCTION_URL` 기반 `Production Health Check` workflow를 작성하였으며, 해당 workflow가 성공적으로 실행되는 것을 확인하였다.
+
+따라서 본 프로젝트는 프런트엔드 자동 배포 workflow, PR Preview 설계, Docker 기반 배포 전략, 헬스체크/모니터링 설정을 포함하여 Week 10 과제 요구사항을 충족한다.
+
+---
+
+## 22. 제출 링크
+
+```text
+https://github.com/minseo040203/edge-vlm-hvac-system/tree/main/week10
+```
 
 ---
 
 **작성일:** 2026년 5월 26일  
 **버전:** 1.0.0  
-**상태:** 🟢 Week 10 배포 자동화 파이프라인 구성 완료
+**상태:** 🟢 Week 10 배포 자동화 파이프라인 검증 완료
