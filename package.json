@@ -10,7 +10,8 @@
     "audit:fix": "npm audit fix",
     "snyk": "snyk test || true",
     "docker:build": "docker build -t edge-vlm-hvac:latest .",
-    "docker:run": "docker run --rm edge-vlm-hvac:latest"
+    "docker:run": "docker run --rm edge-vlm-hvac:latest",
+    "canary:simulate": "node scripts/simulate-canary-rollout.js"
   },
   "repository": {
     "type": "git",

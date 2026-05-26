@@ -1,0 +1,60 @@
+{
+  "service": "edge-vlm-hvac-system",
+  "strategy": "canary",
+  "environment": "production",
+  "stages": [
+    {
+      "name": "stage-1",
+      "trafficPercentage": 1,
+      "durationMinutes": 10,
+      "healthCheck": {
+        "endpoint": "/health",
+        "successRateThreshold": 99,
+        "maxErrorRate": 1,
+        "maxP95LatencyMs": 500
+      },
+      "rollbackOnFailure": true
+    },
+    {
+      "name": "stage-2",
+      "trafficPercentage": 10,
+      "durationMinutes": 20,
+      "healthCheck": {
+        "endpoint": "/health",
+        "successRateThreshold": 98,
+        "maxErrorRate": 2,
+        "maxP95LatencyMs": 700
+      },
+      "rollbackOnFailure": true
+    },
+    {
+      "name": "stage-3",
+      "trafficPercentage": 50,
+      "durationMinutes": 30,
+      "healthCheck": {
+        "endpoint": "/health",
+        "successRateThreshold": 97,
+        "maxErrorRate": 3,
+        "maxP95LatencyMs": 900
+      },
+      "rollbackOnFailure": true
+    },
+    {
+      "name": "stage-4",
+      "trafficPercentage": 100,
+      "durationMinutes": 60,
+      "healthCheck": {
+        "endpoint": "/health",
+        "successRateThreshold": 97,
+        "maxErrorRate": 3,
+        "maxP95LatencyMs": 1000
+      },
+      "rollbackOnFailure": true
+    }
+  ],
+  "rollback": {
+    "strategy": "restore-previous-stable-version",
+    "notify": ["github-issue", "actions-log"],
+    "artifact": "canary-rollout-report"
+  }
+}
