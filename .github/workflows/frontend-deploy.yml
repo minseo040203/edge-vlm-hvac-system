@@ -1,6 +1,6 @@
-name: Frontend Vercel Deploy
+name: Frontend Build and Vercel Deploy
 
-'on':
+on:
   push:
     branches:
       - main
@@ -36,7 +36,7 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: Create build report
+      - name: Create frontend build report
         run: |
           mkdir -p deployment-report
 
@@ -49,20 +49,24 @@ jobs:
           - Branch: ${{ github.ref_name }}
           - Event: ${{ github.event_name }}
 
-          Vercel 배포를 위해 다음 GitHub Secrets 설정이 필요합니다.
+          ## Required Vercel Secrets
+
+          Vercel 자동 배포를 위해 다음 GitHub Secrets가 필요합니다.
 
           - VERCEL_TOKEN
           - VERCEL_ORG_ID
           - VERCEL_PROJECT_ID
 
-          Production 헬스체크를 위해 다음 GitHub Secret 설정이 필요합니다.
+          ## Required Monitoring Secret
+
+          운영 URL 헬스체크를 위해 다음 GitHub Secret이 필요합니다.
 
           - PRODUCTION_URL
           EOF
 
           cat deployment-report/frontend-deployment.md
 
-      - name: Upload frontend deployment report
+      - name: Upload frontend build report
         uses: actions/upload-artifact@v4
         with:
           name: frontend-deployment-report
@@ -83,7 +87,7 @@ jobs:
         run: |
           if [ -z "${{ secrets.VERCEL_TOKEN }}" ] || [ -z "${{ secrets.VERCEL_ORG_ID }}" ] || [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Vercel secrets are not configured. Skipping deploy."
+            echo "Vercel secrets are not configured. Deployment will be skipped."
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
             echo "Vercel secrets are configured."
@@ -92,8 +96,19 @@ jobs:
       - name: Skip Vercel deploy when secrets are missing
         if: steps.check_secrets.outputs.configured == 'false'
         run: |
-          echo "Vercel 배포 Secret이 없어 배포를 건너뜁니다."
-          echo "프런트엔드 빌드 검증은 완료되었습니다."
+          echo "Vercel 배포 Secret이 없어 실제 Vercel 배포는 건너뜁니다."
+          echo "프런트엔드 빌드 검증은 frontend-build job에서 완료되었습니다."
+          echo ""
+          echo "필요한 Secrets:"
+          echo "- VERCEL_TOKEN"
+          echo "- VERCEL_ORG_ID"
+          echo "- VERCEL_PROJECT_ID"
+
+      - name: Set up Node.js
+        if: steps.check_secrets.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install Vercel CLI
         if: steps.check_secrets.outputs.configured == 'true'
@@ -101,14 +116,24 @@ jobs:
 
       - name: Pull Vercel environment
         if: steps.check_secrets.outputs.configured == 'true'
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          fi
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build with Vercel
         if: steps.check_secrets.outputs.configured == 'true'
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          fi
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -117,7 +142,12 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         id: deploy
         run: |
-          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          else
+            DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          fi
+
           echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
           echo "Deployment URL: $DEPLOYMENT_URL"
         env:
@@ -128,3 +158,17 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         run: |
           curl -L -f "${{ steps.deploy.outputs.deployment_url }}"
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request' && steps.check_secrets.outputs.configured == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.deploy.outputs.deployment_url }}';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `🚀 Vercel Preview Deployment 완료\n\nPreview URL: ${url}`
+            });
