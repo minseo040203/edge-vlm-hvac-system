@@ -1,0 +1,59 @@
+{
+  "experiment": {
+    "name": "Feature Flag HVAC Dashboard V2 A/B Test",
+    "duration": "2 weeks",
+    "period": {
+      "start": "2026-05-26",
+      "end": "2026-06-09"
+    },
+    "featureFlag": "hvacDashboardV2",
+    "control": "Classic Dashboard",
+    "variant": "Dashboard V2"
+  },
+  "metrics": {
+    "week1": {
+      "control": {
+        "users": 50,
+        "taskCompletionRate": 0.68,
+        "averageSessionDurationSeconds": 142,
+        "ctaClickRate": 0.22,
+        "feedbackRatingAverage": 3.3
+      },
+      "variantA": {
+        "users": 50,
+        "taskCompletionRate": 0.76,
+        "averageSessionDurationSeconds": 168,
+        "ctaClickRate": 0.31,
+        "feedbackRatingAverage": 3.9
+      }
+    },
+    "week2": {
+      "control": {
+        "users": 55,
+        "taskCompletionRate": 0.7,
+        "averageSessionDurationSeconds": 148,
+        "ctaClickRate": 0.24,
+        "feedbackRatingAverage": 3.4
+      },
+      "variantA": {
+        "users": 55,
+        "taskCompletionRate": 0.82,
+        "averageSessionDurationSeconds": 181,
+        "ctaClickRate": 0.37,
+        "feedbackRatingAverage": 4.2
+      }
+    }
+  },
+  "calculatedImpact": {
+    "taskCompletionRateLift": "+17.1%",
+    "ctaClickRateLift": "+54.2%",
+    "feedbackRatingLift": "+23.5%",
+    "sessionDurationChange": "+22.3%"
+  },
+  "interpretation": {
+    "primaryMetric": "taskCompletionRate",
+    "result": "variantA improved the primary metric compared with control.",
+    "risk": "Session duration increased, which may indicate higher engagement or possible information overload.",
+    "recommendation": "Persevere with Dashboard V2 while improving tooltip guidance and mobile compact layout."
+  }
+}
