@@ -1,0 +1,69 @@
+name: Week 13 Experiment Report
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'experiments/week13/**'
+      - 'scripts/generate-week13-report.js'
+      - '.github/workflows/week13-experiment-report.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  generate-experiment-report:
+    name: Generate experiment report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate Week 13 report
+        run: npm run week13:report
+
+      - name: Upload experiment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: week13-experiment-report
+          path: |
+            experiments/week13/generated-report.md
+            experiments/week13/weekly-report.md
+            experiments/week13/pivot-or-persevere-decision.md
+          retention-days: 30
+
+      - name: Create weekly report issue
+        if: github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'Week 13 Experiment Weekly Report';
+            const body = [
+              'Week 13 experiment report has been generated automatically.',
+              '',
+              'Included reports:',
+              '- generated-report.md',
+              '- weekly-report.md',
+              '- pivot-or-persevere-decision.md',
+              '',
+              'Please review the A/B test metrics and Pivot or Persevere decision.'
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['experiment', 'weekly-report', 'week13']
+            });
