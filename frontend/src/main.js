@@ -46,3 +46,5 @@ function App() {
 
 createRoot(document.getElementById("root")).render(<App />);
 // force frontend workflow run
+
+// trigger frontend workflow after actions permission check
