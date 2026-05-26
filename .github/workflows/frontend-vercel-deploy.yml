@@ -1,6 +1,6 @@
 name: Frontend Vercel Deploy
 
-on:
+'on':
   push:
     branches:
       - main
