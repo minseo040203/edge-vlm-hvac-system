@@ -1,10 +1,13 @@
 name: Frontend Build and Vercel Deploy
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +20,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Check frontend files
+        run: |
+          test -f frontend/package.json
+          test -f frontend/index.html
+          test -f frontend/src/main.js
+          test -f vercel.json
+          echo "Frontend files exist."
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -31,8 +42,39 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Deployment placeholder
+      - name: Create deployment report
         run: |
-          echo "Frontend build completed."
-          echo "Vercel deployment will be enabled after secrets are configured."
-          echo "Required secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID"
+          mkdir -p deployment-report
+          cat > deployment-report/frontend-deployment.md << EOF
+          # Frontend Deployment Report
+
+          - Status: Frontend build success
+          - Platform: Vercel ready
+          - Commit: ${{ github.sha }}
+          - Branch: ${{ github.ref_name }}
+          - Event: ${{ github.event_name }}
+
+          ## Deployment Strategy
+
+          This workflow validates the frontend build before deployment.
+          Vercel production and preview deployment can be enabled by adding the following GitHub Secrets:
+
+          - VERCEL_TOKEN
+          - VERCEL_ORG_ID
+          - VERCEL_PROJECT_ID
+
+          ## Health Check
+
+          Production monitoring can be enabled by adding:
+
+          - PRODUCTION_URL
+          EOF
+
+          cat deployment-report/frontend-deployment.md
+
+      - name: Upload deployment report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-deployment-report
+          path: deployment-report/frontend-deployment.md
+          retention-days: 30
