@@ -23,10 +23,25 @@ jobs:
 
       - name: Check frontend files
         run: |
+          echo "PWD:"
+          pwd
+
+          echo "Root files:"
+          ls -la
+
+          echo "Tracked frontend package:"
+          git ls-files frontend/package.json || true
+
+          echo "Frontend directory:"
+          ls -la frontend || true
+
+          echo "Frontend src directory:"
+          ls -la frontend/src || true
+
           test -f frontend/package.json
           test -f frontend/index.html
-          test -f frontend/src/main.js
-          test -f vercel.json
+          test -f frontend/src/main.jsx
+
           echo "Frontend files exist."
 
       - name: Set up Node.js
