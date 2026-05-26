@@ -38,7 +38,7 @@ function App() {
         borderRadius: "12px"
       }}>
         <h2>Health Check</h2>
-        <p>Status: OK</p>
+        <p>Status: OK - Deployed</p>
       </section>
     </main>
   );
